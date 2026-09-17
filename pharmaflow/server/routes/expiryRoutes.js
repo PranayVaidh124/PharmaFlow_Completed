@@ -1,0 +1,1 @@
+import{Router}from'express';import{expiryAlerts}from'../services/expiryService.js';import{protect}from'../middleware/authMiddleware.js';const r=Router();r.get('/',protect,async(req,res,next)=>{try{const days=Math.min(365,Math.max(1,Number(req.query.days)||30));res.json({success:true,data:await expiryAlerts(days)})}catch(e){next(e)}});export default r;

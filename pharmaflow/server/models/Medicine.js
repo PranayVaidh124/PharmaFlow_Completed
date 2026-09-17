@@ -1,0 +1,1 @@
+import mongoose from'mongoose';const s=new mongoose.Schema({name:{type:String,required:true,trim:true},genericName:{type:String,trim:true},manufacturer:{type:String,trim:true},category:{type:String,trim:true},description:{type:String,trim:true}},{timestamps:true});s.index({name:1});s.index({genericName:1});s.index({manufacturer:1});export default mongoose.model('Medicine',s);

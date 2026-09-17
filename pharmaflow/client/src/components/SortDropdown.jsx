@@ -1,0 +1,1 @@
+import React from 'react'; export default function SortDropdown({value,onChange,options}){return <select className="select" value={value} onChange={e=>onChange(e.target.value)}>{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>}

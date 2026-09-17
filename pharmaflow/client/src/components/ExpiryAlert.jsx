@@ -1,0 +1,1 @@
+export default function ExpiryAlert({batch}){return <div className="alert-row"><div><strong>{batch.medicine?.name||batch.medicineName}</strong><span>Batch {batch.batchNumber}</span></div><div><strong>{batch.quantity} units</strong><span>{new Date(batch.expiryDate).toLocaleDateString()}</span></div><span className={`badge ${batch.status}`}>{batch.status}</span></div>}

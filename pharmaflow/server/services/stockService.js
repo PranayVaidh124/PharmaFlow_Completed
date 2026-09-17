@@ -1,0 +1,1 @@
+import Batch from'../models/Batch.js';export async function getStock(medicineId){const now=new Date();const rows=await Batch.find({medicineId});let sellableStock=0,expiredStock=0,totalStock=0;for(const b of rows){totalStock+=b.quantity;if(b.expiryDate>now)sellableStock+=b.quantity;else expiredStock+=b.quantity}return{sellableStock,expiredStock,totalStock}}

@@ -1,0 +1,1 @@
+export const STATUS={EXPIRED:'expired',CRITICAL:'critical',WARNING:'warning',UPCOMING:'upcoming',SAFE:'safe'};

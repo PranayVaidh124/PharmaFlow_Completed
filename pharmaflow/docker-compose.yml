@@ -1,0 +1,22 @@
+version:'3.8'
+services:
+  mongodb:
+    image:mongo:7
+    container_name:pharmaflow-mongo
+    ports:['27017:27017']
+    volumes:['mongo-data:/data/db']
+  server:
+    build:./server
+    ports:['5000:5000']
+    environment:
+      PORT:5000
+      MONGO_URI:mongodb://mongodb:27017/pharmaflow
+      JWT_SECRET:change_me_docker_secret
+      CLIENT_URL:http://localhost:5173
+    depends_on:[mongodb]
+  client:
+    build:./client
+    ports:['5173:5173']
+    depends_on:[server]
+volumes:
+  mongo-data:

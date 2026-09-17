@@ -1,0 +1,1 @@
+import{Router}from'express';import{update,remove}from'../controllers/batchController.js';import{protect}from'../middleware/authMiddleware.js';const r=Router();r.use(protect);r.put('/:id',update);r.delete('/:id',remove);export default r;

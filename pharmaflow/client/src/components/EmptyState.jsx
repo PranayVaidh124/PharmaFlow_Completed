@@ -1,0 +1,1 @@
+export default function EmptyState({title='Nothing here yet',text=''}){return <div className="empty"><div className="empty-icon">—</div><h3>{title}</h3><p>{text}</p></div>}

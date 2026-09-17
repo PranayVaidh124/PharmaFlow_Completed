@@ -1,0 +1,1 @@
+import api from './axios'; export const getBatches=(id,p)=>api.get(`/medicines/${id}/batches`,{params:p}); export const createBatch=(id,d)=>api.post(`/medicines/${id}/batches`,d); export const updateBatch=(id,d)=>api.put(`/batches/${id}`,d); export const deleteBatch=id=>api.delete(`/batches/${id}`);

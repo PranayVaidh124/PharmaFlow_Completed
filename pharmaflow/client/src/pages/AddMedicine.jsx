@@ -1,0 +1,1 @@
+import React from'react';import MedicineForm from'./MedicineForm';export default function AddMedicine(){return <MedicineForm/>}

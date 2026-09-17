@@ -1,0 +1,1 @@
+import React from 'react'; export default function StockCard({label,value,sub,icon:Icon}){return <div className="stat-card"><div className="stat-icon"><Icon size={19}/></div><div><div className="stat-label">{label}</div><div className="stat-value">{value}</div>{sub&&<div className="stat-sub">{sub}</div>}</div></div>}

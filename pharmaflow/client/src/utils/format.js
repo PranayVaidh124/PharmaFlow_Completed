@@ -1,0 +1,1 @@
+export const errorText=e=>e?.response?.data?.message||e?.message||'Something went wrong'; export const fmtDate=d=>new Date(d).toLocaleDateString(undefined,{day:'2-digit',month:'short',year:'numeric'});

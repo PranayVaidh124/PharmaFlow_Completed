@@ -1,0 +1,1 @@
+import api from './axios'; export const dispense=d=>api.post('/dispense',d); export const getHistory=p=>api.get('/dispense/history',{params:p}); export const getDispense=id=>api.get(`/dispense/${id}`); export const getExpiry=p=>api.get('/expiry-alerts',{params:p});

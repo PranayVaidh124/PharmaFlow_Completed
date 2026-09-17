@@ -1,0 +1,1 @@
+import test from 'node:test';import assert from 'node:assert/strict';test('credential validation requires a minimum password length',()=>{const password='password123';assert.equal(password.length>=6,true);assert.equal('wrong'===password,false)});

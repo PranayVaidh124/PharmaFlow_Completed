@@ -1,0 +1,1 @@
+export const daysUntil=d=>Math.ceil((new Date(d)-new Date())/86400000); export const dateInput=d=>new Date(d).toISOString().slice(0,10);

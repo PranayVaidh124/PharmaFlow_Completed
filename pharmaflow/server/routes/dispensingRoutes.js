@@ -1,0 +1,1 @@
+import{Router}from'express';import{create,history,one}from'../controllers/dispensingController.js';import{protect}from'../middleware/authMiddleware.js';const r=Router();r.use(protect);r.post('/',create);r.get('/history',history);r.get('/:id',one);export default r;

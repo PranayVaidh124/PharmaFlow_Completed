@@ -1,0 +1,1 @@
+export function required(fields){return(req,res,next)=>{for(const f of fields)if(req.body[f]===undefined||req.body[f]===null||String(req.body[f]).trim()==='')return res.status(400).json({success:false,message:`${f} is required`});next()}}

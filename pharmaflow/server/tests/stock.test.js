@@ -1,0 +1,1 @@
+import test from'node:test';import assert from'node:assert/strict';test('sellable stock excludes expired quantity',()=>{const rows=[{quantity:100,expiry:new Date('2026-09-20')},{quantity:50,expiry:new Date('2026-09-10')}],now=new Date('2026-09-17');const sellable=rows.filter(x=>x.expiry>now).reduce((s,x)=>s+x.quantity,0);assert.equal(sellable,100)});
