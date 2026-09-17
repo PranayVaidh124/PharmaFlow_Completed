@@ -1,67 +1,392 @@
-# Engineering Reasoning
+# REASONING
 
-## 1. Problem Understanding
-Pharmacy inventory is batch-oriented: the same medicine can exist in several batches with different expiry dates. The critical rule is therefore FEFO rather than simple FIFO.
+This document records the engineering decisions, implementation rationale, testing approach and development fixes for PharmaFlow. It describes the reasoning at an engineering level; it does not reproduce private model chain-of-thought.
 
-## 2. Requirements Analysis
-The implementation prioritizes persistence, real REST APIs, authentication, search, pagination, sorting, expiry visibility and backend-enforced dispensing.
+## 1. Understanding the Problem
+
+A neighborhood pharmacy can hold several batches of the same medicine. Each batch can have a different expiry date and quantity.
+
+The important inventory rule is therefore not ordinary FIFO. The application needs **FEFO — First-Expiry-First-Out** — so the valid batch with the earliest expiry is dispensed first.
+
+The system also needs to prevent expired stock from being sold, provide search and expiry visibility, and keep an auditable record of dispensing.
+
+## 2. Requirements Translated into Features
+
+The requirements were mapped to:
+
+- Persistent MongoDB storage.
+- REST APIs for core operations.
+- React UI consuming those APIs.
+- User registration and login.
+- Medicine and batch management.
+- Search.
+- Pagination.
+- Sorting.
+- Sellable-stock calculation.
+- Expiry alerts.
+- FEFO dispensing.
+- Dispensing history.
+- A one-page product landing page.
+- Root README, reasoning documentation and AI logs.
 
 ## 3. Why MERN
-React provides a focused interactive UI, Express exposes REST endpoints, Node.js keeps the API lightweight, and MongoDB/Mongoose map naturally to medicine, batch and audit records.
+
+The project uses MongoDB, Express, React and Node.js.
+
+This keeps the application in one primary programming ecosystem while separating the frontend UI from the backend business rules.
+
+React handles the interactive pharmacist interface.
+
+Express and Node.js expose REST APIs and enforce business rules.
+
+MongoDB stores the catalogue, batches, users and dispensing records.
+
+Mongoose provides schemas, validation and database access.
 
 ## 4. Database Design
-Medicines store stable catalogue information. Batches are separate because quantity and expiry vary by batch. Dispensing records preserve the allocation audit trail.
 
-## 5. Why Batches Are Separate
-A single medicine can have multiple expiry dates. Combining those values into one medicine document would make FEFO and inventory auditing harder.
+The main entities are:
 
-## 6. FEFO Algorithm
-The service filters to positive, non-expired batches and sorts by expiry ascending. It consumes each batch until the requested quantity is satisfied.
+### User
 
-## 7. Backend Enforcement
-FEFO is a business rule, so it is enforced by the API rather than trusting the browser. This prevents a modified client from selecting an expired or later-expiring batch.
+Stores:
+
+- Name
+- Email
+- Password hash
+- Role
+- Timestamps
+
+### Medicine
+
+Stores catalogue information such as:
+
+- Name
+- Generic name
+- Manufacturer
+- Category
+- Description
+
+### Batch
+
+Stores stock-specific information:
+
+- Medicine reference
+- Batch number
+- Quantity
+- Received date
+- Expiry date
+
+A separate Batch entity is important because the same medicine may have many batches and each batch can expire at a different time.
+
+### Dispensing
+
+Stores:
+
+- Medicine
+- Pharmacist/user
+- Requested quantity
+- Exact batch allocations
+- Creation timestamp
+
+This provides an audit trail of which batches were actually consumed.
+
+## 5. FEFO Design
+
+FEFO is implemented in the backend service instead of trusting the browser.
+
+The algorithm:
+
+1. Select batches for the requested medicine.
+2. Require positive quantity.
+3. Require expiry later than the current time.
+4. Sort by expiry date ascending.
+5. Calculate allocations until the requested quantity is satisfied.
+6. Reject the request if there is not enough valid stock.
+7. Decrement the allocated batches.
+8. Create a dispensing record containing the exact allocations.
+
+This prevents an expired batch from being selected simply because it contains available quantity.
+
+## 6. Why FEFO Is Backend-Enforced
+
+The frontend is a user interface and cannot be treated as a trusted source for inventory rules.
+
+If FEFO existed only in React, a modified request could potentially try to select another batch.
+
+The API therefore calculates the allocation itself. The frontend only sends the medicine and requested quantity.
+
+## 7. Atomic Dispensing
+
+A dispensing operation can affect several batch documents and create one dispensing record.
+
+The implementation uses MongoDB transaction behavior so the operation can be treated as one logical unit.
+
+If sufficient sellable stock is not available, the transaction should not leave a partial deduction behind.
+
+This is important for inventory consistency.
 
 ## 8. Sellable Stock
-Sellable stock is the sum of quantities whose expiry date is later than the current time. Expired quantity is reported separately.
 
-## 9. Expiry Handling
-Batches are classified into expired, critical (7 days), warning (30 days), upcoming (90 days) and safe states.
+Sellable stock is not simply the sum of all batch quantities.
 
-## 10. Transaction Safety
-Dispensing uses a MongoDB transaction and conditional quantity updates. The allocation is checked before changes are committed, so insufficient inventory does not create a partial sale.
+A batch is sellable only when:
 
-## 11. Search Design
-The medicine endpoint uses case-insensitive matching over medicine metadata and supports query parameters for server-side filtering.
+```text
+quantity > 0
+AND
+expiryDate > current date/time
+```
 
-## 12. Pagination Design
-Pagination is performed with database `skip`/`limit`, returning total item and page counts to the frontend.
+Expired quantities are therefore excluded from the sellable total and can be reported separately.
 
-## 13. Sorting Design
-Sort fields are allow-listed to avoid arbitrary query fields. Batch expiry is the default order because it matches FEFO visibility.
+## 9. Expiry Alerts
 
-## 14. Authentication
-Passwords are bcrypt-hashed and JWTs identify authenticated users. Password fields are removed from JSON output.
+Expiry information is exposed through a dedicated API.
 
-## 15. API Design
-Responses use `{success, message, data}` for consistency and management routes require a bearer token.
+The UI can request different windows such as:
 
-## 16. Frontend Architecture
-Pages are separated from reusable navigation, form, table, search, pagination, alert and state components. Axios centralizes the API base URL and JWT header.
+```text
+7 days
+30 days
+90 days
+```
 
-## 17. Error Handling
-Express has centralized not-found and error middleware. Client pages render API errors, loading states and empty states instead of blank content.
+The application also classifies batches for easier pharmacist review.
 
-## 18. Testing Strategy
-Pure FEFO and stock rules are covered with Node's built-in test runner. Authentication hashing is also checked. Integration tests should run against a dedicated MongoDB test database in a CI environment.
+## 10. Search
 
-## 19. Edge Cases
-The API validates positive quantities, date ordering, missing resources, duplicate batch numbers, authentication, invalid pagination and insufficient sellable stock.
+Search is implemented through API query parameters rather than filtering only in the browser.
 
-## 20. Bugs Found During Development
-During the project completion pass, the original uploaded archive was found to contain only the root scaffold. The application was rebuilt around the required client/server structure. No additional runtime bug is claimed here without a reproducible test result.
+Example:
 
-## 21. Fixes Applied
-Added the React/Vite application, Express/Mongoose backend, database models, FEFO service, authentication, seed data, API documentation, UI states and automated unit tests. The root scripts now install, run, test and build the two applications.
+```text
+GET /api/medicines?search=paracetamol
+```
 
-## 22. Future Improvements
-The next three product features intentionally remain Supplier Management, Automated Notifications, and Sales & Inventory Analytics.
+This allows the backend to perform the filtering and lets the UI display results returned by the real database.
+
+## 11. Pagination and Sorting
+
+Inventory can grow, so the API supports server-side pagination and sorting.
+
+Example:
+
+```text
+GET /api/medicines?page=1&limit=10
+```
+
+and:
+
+```text
+GET /api/medicines?page=1&limit=10&sortBy=name&order=asc
+```
+
+Batch views use expiry-oriented ordering so that the earliest-expiring stock is easy to inspect.
+
+## 12. Authentication
+
+Registration and login are handled by the backend.
+
+Passwords are hashed with bcryptjs rather than stored as plain text.
+
+JWT authentication is used to identify authenticated requests.
+
+Protected management endpoints require:
+
+```text
+Authorization: Bearer <JWT>
+```
+
+## 13. Frontend Structure
+
+The React application separates:
+
+- Pages
+- Reusable UI components
+- API modules
+- Authentication context
+- Utility functions
+
+Axios centralizes API communication and authentication headers.
+
+This keeps API logic separate from page rendering.
+
+## 14. Error Handling
+
+The backend contains centralized error handling and route protection.
+
+The frontend displays loading, empty and error states rather than silently failing.
+
+Important cases include:
+
+- Invalid IDs.
+- Missing medicines.
+- Missing batches.
+- Invalid quantities.
+- Invalid dates.
+- Authentication failures.
+- Duplicate batch numbers.
+- Insufficient sellable stock.
+- Database connection failures.
+
+## 15. Testing Strategy
+
+The most important tests focus on inventory rules.
+
+### FEFO ordering
+
+If:
+
+```text
+Batch A expires before Batch B
+```
+
+then A must be allocated before B.
+
+### Expired exclusion
+
+An expired batch must not contribute to sellable stock and must not be selected for dispensing.
+
+### Multi-batch allocation
+
+If:
+
+```text
+Batch A = 5
+Batch B = 10
+Requested = 8
+```
+
+the expected allocation is:
+
+```text
+Batch A = 5
+Batch B = 3
+```
+
+### Insufficient stock
+
+If valid stock is less than the requested quantity, the operation must fail without leaving a partial deduction.
+
+### Authentication
+
+Password hashing and authenticated API behavior are tested.
+
+## 16. Development Fixes
+
+The project was tested during development through terminal output and the browser.
+
+Issues encountered during the development process included:
+
+### Malformed MongoDB URI
+
+A connection string was initially constructed with two MongoDB URI prefixes, producing an invalid value.
+
+The connection string was corrected to the standard form:
+
+```text
+mongodb+srv://USERNAME:PASSWORD@CLUSTER.mongodb.net/pharmaflow?retryWrites=true&w=majority
+```
+
+### MongoDB connectivity
+
+The application produced a `querySrv ECONNREFUSED` connection error during local testing.
+
+DNS/SRV resolution was checked with:
+
+```powershell
+nslookup -type=SRV _mongodb._tcp.YOUR-CLUSTER.mongodb.net
+```
+
+The SRV lookup returned MongoDB Atlas hosts, confirming that DNS resolution was working. The remaining troubleshooting points were Atlas network access, credentials and direct connectivity.
+
+### Frontend JSX syntax
+
+A Vite transform error was encountered in `DispensingHistory.jsx` at a specific source line. The component was corrected so its JSX structure and statements were syntactically valid.
+
+### npm project location
+
+Running an npm command from a directory without the root `package.json` produced `ENOENT`.
+
+The fix was to run commands from the actual project root:
+
+```text
+pharmaflow/
+```
+
+or directly from:
+
+```text
+pharmaflow/server/
+```
+
+and:
+
+```text
+pharmaflow/client/
+```
+
+as appropriate.
+
+## 17. Security During Development
+
+Environment variables are kept outside source control.
+
+The file:
+
+```text
+server/.env
+```
+
+must not be committed because it contains database credentials and application secrets.
+
+The repository should contain:
+
+```text
+server/.env.example
+```
+
+with placeholder values instead.
+
+If a real database password is ever exposed publicly, it should be changed immediately.
+
+## 18. Final Architecture
+
+```text
+React / Vite
+     |
+     | HTTP / JSON
+     v
+Express REST API
+     |
+     +--> Authentication middleware
+     |
+     +--> Controllers
+     |
+     +--> FEFO / stock / expiry services
+     |
+     v
+Mongoose
+     |
+     v
+MongoDB Atlas
+```
+
+The frontend is responsible for usability. The backend is responsible for inventory rules and persistence.
+
+## 19. Known Testing Boundary
+
+Unit tests for the core rules can run without a full browser workflow.
+
+Tests involving the real MongoDB database require a running MongoDB instance or dedicated test database.
+
+For a production CI pipeline, a separate test database should be used rather than the development database.
+
+## 20. Future Improvements
+
+The landing page intentionally lists exactly three next features:
+
+1. Supplier Management
+2. Automated Notifications
+3. Sales & Inventory Analytics
